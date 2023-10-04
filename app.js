@@ -6,10 +6,9 @@ const PORT = 3000;
 
 app.use('/token', tokenRoutes);
 
-app.get("/", (req, res) => {
-    const message = { message: "Request not found" };
-    res.status(404).json( message );
-  });
+app.use('*', (req, res) => {
+    res.status(404).json({ message: 'Endpoint not found' });
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

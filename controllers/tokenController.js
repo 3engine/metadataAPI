@@ -24,10 +24,9 @@ exports.getlootBoxTokenByID = async (req, res) => {
         attributes: [{ trait_type: "BoxType", value: lootBox.boxID }],
       });
     } else {
-      const boxIDBigNumber  = await lootBoxContract.boxType(tokenID);
-const boxIDString = boxIDBigNumber.toString();
-const boxID = Number(boxIDString);
-console.log("test", boxID)
+      const boxIDBigNumber = await lootBoxContract.boxType(tokenID);
+      const boxIDString = boxIDBigNumber.toString();
+      const boxID = Number(boxIDString);
       const lootBox = await LootBox.findOne({ boxID });
       if (!lootBox) {
         return res.status(404).send({ error: "LootBox not found" });
@@ -64,7 +63,9 @@ exports.getItemTokenByID = async (req, res) => {
       });
     } else {
       const itemIDBigNumber = await itemContract.tokenType(tokenID);
-      const itemID = itemIDBigNumber.toNumber();
+      const itemIDString = itemIDBigNumber.toString();
+      const itemID = Number(itemIDString);
+
       const item = await Item.findOne({ itemID });
       if (!item) {
         return res.status(404).send({ error: "Item not found" });
@@ -101,7 +102,8 @@ exports.getKeyTokenByID = async (req, res) => {
       });
     } else {
       const lootBoxIDBigNumber = await keyContract.keyBoxID(tokenID);
-      const lootBoxID = lootBoxIDBigNumber.toNumber();
+      const lootBoxIDString = lootBoxIDBigNumber.toString();
+      const lootBoxID = Number(lootBoxIDString);
       const key = await Key.findOne({ lootBoxID });
       if (!key) {
         return res.status(404).send({ error: "Key not found" });

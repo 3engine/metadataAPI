@@ -47,6 +47,27 @@ exports.getlootBoxTokenByID = async (req, res) => {
     res.status(500).send({ error: "Server Error: " + error.message });
   }
 };
+exports.getAllLootBoxes = async (req, res) => {
+  try {
+    const lootBoxes = await LootBox.find({ supply: { $gt: 0 } });
+
+    if (lootBoxes.length === 0) {
+      return res.status(404).send({ error: "No lootboxes found" });
+    }
+
+    const allLootBox = lootBoxes.map((lootBox) => ({
+      boxID: lootBox.boxID,
+      uri: lootBox.uri,
+      name: lootBox.name,
+      supply: lootBox.name,
+      items: lootBox.items,
+    }));
+
+    res.json(allLootBox);
+  } catch (error) {
+    res.status(500).send({ error: "Server Error: " + error.message });
+  }
+};
 
 exports.getItemTokenByID = async (req, res) => {
   const tokenID = req.params.tokenID;
@@ -120,6 +141,27 @@ exports.getKeyTokenByID = async (req, res) => {
         attributes: [{ trait_type: "lootBox", value: key.lootBoxID }],
       });
     }
+  } catch (error) {
+    res.status(500).send({ error: "Server Error: " + error.message });
+  }
+};
+exports.getAllKeys = async (req, res) => {
+  try {
+    const keys = await Key.find({ supply: { $gt: 0 } });
+
+    if (keys.length === 0) {
+      return res.status(404).send({ error: "No Key found" });
+    }
+
+    const allKeys = keys.map((key) => ({
+      lootBoxID: key.lootBoxID,
+      name: key.name,
+      price: key.price,
+      uri: key.uri,
+      supply: key.supply,
+    }));
+
+    res.json(allKeys);
   } catch (error) {
     res.status(500).send({ error: "Server Error: " + error.message });
   }

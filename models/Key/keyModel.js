@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const keySchema = new mongoose.Schema({
   lootBoxID: { type: Number, required: true, unique: true },
   price: { type: Number, required: true },
+  name: { type: String, required: true },
   uri: { type: String, required: true },
   supply: { type: Number, default: 0 },
 });

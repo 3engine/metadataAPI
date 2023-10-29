@@ -10,7 +10,7 @@ const ItemToken = require("../models/Item/itemTokensModel");
 const Key = require("../models/Key/keyModel");
 const KeyToken = require("../models/Key/keyTokensModel");
 
-exports.getlootBoxTokenByID = async (req, res) => {
+exports.getLootBoxTokenByID = async (req, res) => {
   const tokenID = req.params.tokenID;
   try {
     const token = await LootBoxToken.findOne({ tokenID });
@@ -55,15 +55,49 @@ exports.getAllLootBoxes = async (req, res) => {
       return res.status(404).send({ error: "No lootboxes found" });
     }
 
-    const allLootBox = lootBoxes.map((lootBox) => ({
-      boxID: lootBox.boxID,
-      uri: lootBox.uri,
-      name: lootBox.name,
-      supply: lootBox.name,
-      items: lootBox.items,
-    }));
+    const allLootBoxes = await Promise.all(
+      lootBoxes.map(async (lootBox) => {
+        const itemIDs = lootBox.items;
+        const itemDocs = await Item.find({ itemID: { $in: itemIDs } });
 
-    res.json(allLootBox);
+        return {
+          boxID: lootBox.boxID,
+          uri: lootBox.uri,
+          name: lootBox.name,
+          supply: lootBox.supply,
+          items: itemDocs,
+        };
+      }),
+    );
+
+    res.json(allLootBoxes);
+  } catch (error) {
+    res.status(500).send({ error: "Server Error: " + error.message });
+  }
+};
+
+exports.getAllLootBoxInfo = async (req, res) => {
+  const boxID = req.params.boxID;
+  try {
+    const lootBox = await LootBox.findOne({ boxID, supply: { $gt: 0 } });
+
+    if (!lootBox) {
+      return res.status(404).send({ error: "Lootbox not found" });
+    }
+
+    const itemIDs = lootBox.items;
+    const itemDocs = await Item.find({ itemID: { $in: itemIDs } });
+
+    lootBox.items = itemDocs;
+    const result = {
+      boxID: lootBox.boxID,
+      name: lootBox.name,
+      uri: lootBox.uri,
+      supply: lootBox.supply,
+      items: itemDocs,
+    };
+
+    res.json(result);
   } catch (error) {
     res.status(500).send({ error: "Server Error: " + error.message });
   }
@@ -145,23 +179,88 @@ exports.getKeyTokenByID = async (req, res) => {
     res.status(500).send({ error: "Server Error: " + error.message });
   }
 };
+
 exports.getAllKeys = async (req, res) => {
   try {
-    const keys = await Key.find({ supply: { $gt: 0 } });
+    const keys = await Key.aggregate([
+      {
+        $match: { supply: { $gt: 0 } },
+      },
+      {
+        $lookup: {
+          from: "lootboxes",
+          localField: "lootBoxID",
+          foreignField: "boxID",
+          as: "lootboxData",
+        },
+      },
+      {
+        $unwind: "$lootboxData",
+      },
+      {
+        $project: {
+          _id: 0,
+          lootBoxID: 1,
+          name: 1,
+          price: 1,
+          uri: 1,
+          supply: 1,
+          lootBoxName: "$lootboxData.name",
+          lootBoxUri: "$lootboxData.uri",
+          lootBoxSupply: "$lootboxData.supply",
+        },
+      },
+    ]);
 
     if (keys.length === 0) {
       return res.status(404).send({ error: "No Key found" });
     }
+    res.json(keys);
+  } catch (error) {
+    res.status(500).send({ error: "Server Error: " + error.message });
+  }
+};
 
-    const allKeys = keys.map((key) => ({
-      lootBoxID: key.lootBoxID,
-      name: key.name,
-      price: key.price,
-      uri: key.uri,
-      supply: key.supply,
-    }));
-
-    res.json(allKeys);
+exports.getOneKeyInfo = async (req, res) => {
+  const boxID = parseInt(req.params.boxID, 10);
+  try {
+    const key = await Key.aggregate([
+      {
+        $match: { lootBoxID: 1, supply: { $gt: 0 } },
+      },
+      {
+        $lookup: {
+          from: "lootboxes",
+          localField: "lootBoxID",
+          foreignField: "boxID",
+          as: "lootboxData",
+        },
+      },
+      {
+        $unwind: "$lootboxData",
+      },
+      {
+        $project: {
+          _id: 0,
+          lootBoxID: 1,
+          name: 1,
+          price: 1,
+          uri: 1,
+          supply: 1,
+          lootBoxName: "$lootboxData.name",
+          lootBoxUri: "$lootboxData.uri",
+          lootBoxSupply: "$lootboxData.supply",
+          items: "$lootboxData.items",
+        },
+      },
+    ]);
+    if (key.length === 0) {
+      return res.status(404).send({ error: "Key not found" });
+    }
+    const itemIDs = key[0].items;
+    const itemDocs = await Item.find({ itemID: { $in: itemIDs } });
+    key[0].items = itemDocs;
+    res.json(key[0]);
   } catch (error) {
     res.status(500).send({ error: "Server Error: " + error.message });
   }

@@ -47,6 +47,7 @@ exports.getLootBoxTokenByID = async (req, res) => {
     res.status(500).send({ error: "Server Error: " + error.message });
   }
 };
+
 exports.getAllLootBoxes = async (req, res) => {
   try {
     const lootBoxes = await LootBox.find({ supply: { $gt: 0 } });
@@ -71,6 +72,67 @@ exports.getAllLootBoxes = async (req, res) => {
     );
 
     res.json(allLootBoxes);
+  } catch (error) {
+    res.status(500).send({ error: "Server Error: " + error.message });
+  }
+};
+exports.getLootBoxTokensByID = async (req, res) => {
+  let tokenIDs = req.query.tokenIDs;
+
+  if (typeof tokenIDs === "string") {
+    try {
+      tokenIDs = JSON.parse(tokenIDs);
+    } catch (e) {
+      return res.status(400).send({ error: "Invalid tokenIDs format" });
+    }
+  }
+
+  if (!Array.isArray(tokenIDs)) {
+    return res.status(400).send({ error: "tokenIDs must be an array" });
+  }
+
+  try {
+    let tokensData = [];
+
+    for (const tokenID of tokenIDs) {
+      const numericTokenID = Number(tokenID);
+      const token = await LootBoxToken.findOne({ tokenID: numericTokenID });
+
+      if (token) {
+        const lootBox = await LootBox.findById(token.lootBox);
+        tokensData.push({
+          name: lootBox.name + " #" + numericTokenID,
+          image: lootBox.uri,
+          attributes: [{ trait_type: "BoxType", value: lootBox.boxID }],
+        });
+      } else {
+        const boxIDBigNumber = await lootBoxContract.boxType(numericTokenID);
+        const boxIDString = boxIDBigNumber.toString();
+        const boxID = Number(boxIDString);
+        const lootBox = await LootBox.findOne({ boxID });
+
+        if (!lootBox) {
+          tokensData.push({
+            error: `LootBox not found for tokenID ${numericTokenID}`,
+          });
+          continue;
+        }
+
+        const newToken = new LootBoxToken({
+          tokenID: numericTokenID,
+          lootBox: lootBox._id,
+        });
+        await newToken.save();
+
+        tokensData.push({
+          name: lootBox.name + " #" + numericTokenID,
+          image: lootBox.uri,
+          attributes: [{ trait_type: "BoxType", value: lootBox.boxID }],
+        });
+      }
+    }
+
+    res.json(tokensData);
   } catch (error) {
     res.status(500).send({ error: "Server Error: " + error.message });
   }
@@ -109,7 +171,7 @@ exports.getItemTokenByID = async (req, res) => {
     const token = await ItemToken.findOne({ tokenID: tokenID });
 
     if (token) {
-      const item = await Item.findById(token.lootBox);
+      const item = await Item.findById(token.item);
 
       return res.json({
         name: item.name + " #" + tokenID,
@@ -137,6 +199,66 @@ exports.getItemTokenByID = async (req, res) => {
         attributes: [{ trait_type: "itemType", value: item.boxID }],
       });
     }
+  } catch (error) {
+    res.status(500).send({ error: "Server Error: " + error.message });
+  }
+};
+exports.getItemTokensByID = async (req, res) => {
+  let tokenIDs = req.query.tokenIDs;
+
+  if (typeof tokenIDs === "string") {
+    try {
+      tokenIDs = JSON.parse(tokenIDs);
+    } catch (e) {
+      return res.status(400).send({ error: "Invalid tokenIDs format" });
+    }
+  }
+
+  if (!Array.isArray(tokenIDs)) {
+    return res.status(400).send({ error: "tokenIDs must be an array" });
+  }
+
+  try {
+    let tokensData = [];
+
+    for (const tokenID of tokenIDs) {
+      const numericTokenID = Number(tokenID);
+      const token = await ItemToken.findOne({ tokenID: numericTokenID });
+
+      if (token) {
+        const item = await Item.findById(token.item);
+
+        tokensData.push({
+          name: item.name + " #" + numericTokenID,
+          image: item.uri,
+          attributes: [{ trait_type: "itemType", value: item.itemID }],
+        });
+      } else {
+        const itemIDBigNumber = await itemContract.tokenType(numericTokenID);
+        const itemIDString = itemIDBigNumber.toString();
+        const itemID = Number(itemIDString);
+
+        const item = await Item.findOne({ itemID });
+        if (!item) {
+          tokensData.push({
+            error: `Item not found for tokenID ${numericTokenID}`,
+          });
+          continue;
+        }
+        const newToken = new ItemToken({
+          tokenID: numericTokenID,
+          item: item._id,
+        });
+        await newToken.save();
+
+        tokensData.push({
+          name: item.name + " #" + numericTokenID,
+          image: item.uri,
+          attributes: [{ trait_type: "itemType", value: item.boxID }],
+        });
+      }
+    }
+    res.json(tokensData);
   } catch (error) {
     res.status(500).send({ error: "Server Error: " + error.message });
   }

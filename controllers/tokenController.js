@@ -301,6 +301,66 @@ exports.getKeyTokenByID = async (req, res) => {
     res.status(500).send({ error: "Server Error: " + error.message });
   }
 };
+exports.getKeyTokensByID = async (req, res) => {
+  let tokenIDs = req.query.tokenIDs;
+
+  if (typeof tokenIDs === 'string') {
+    try {
+      tokenIDs = JSON.parse(tokenIDs);
+    } catch (e) {
+      return res.status(400).send({ error: "Invalid tokenIDs format" });
+    }
+  }
+
+  if (!Array.isArray(tokenIDs)) {
+    return res.status(400).send({ error: "tokenIDs must be an array" });
+  }
+
+  try {
+    let tokensData = [];
+
+    for (const tokenID of tokenIDs) {
+      const numericTokenID = Number(tokenID);
+      const token = await KeyToken.findOne({ tokenID: numericTokenID });
+
+      if (token) {
+        const key = await Key.findById(token.key);
+
+        tokensData.push({
+          name: key.name + " #" + numericTokenID,
+          image: key.uri,
+          attributes: [{ trait_type: "lootBox", value: key.lootBoxID }],
+        });
+      } else {
+        const lootBoxIDBigNumber = await keyContract.keyBoxID(numericTokenID);
+        const lootBoxIDString = lootBoxIDBigNumber.toString();
+        const lootBoxID = Number(lootBoxIDString);
+        const key = await Key.findOne({ lootBoxID });
+
+        if (!key) {
+          tokensData.push({ error: `Key not found for tokenID ${numericTokenID}` });
+          continue;
+        }
+
+        const newToken = new KeyToken({
+          tokenID: numericTokenID,
+          key: key._id,
+        });
+        await newToken.save();
+
+        tokensData.push({
+          name: key.name + " #" + numericTokenID,
+          image: key.uri,
+          attributes: [{ trait_type: "lootBox", value: key.lootBoxID }],
+        });
+      }
+    }
+
+    res.json(tokensData);
+  } catch (error) {
+    res.status(500).send({ error: "Server Error: " + error.message });
+  }
+};
 
 exports.getAllKeys = async (req, res) => {
   try {

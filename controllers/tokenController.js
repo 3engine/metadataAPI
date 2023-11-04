@@ -270,7 +270,7 @@ exports.getKeyTokenByID = async (req, res) => {
     const token = await KeyToken.findOne({ tokenID });
 
     if (token) {
-      const key = await Key.findById(token.lootBox);
+      const key = await Key.findById(token.key);
 
       return res.json({
         name: key.name + " #" + tokenID,

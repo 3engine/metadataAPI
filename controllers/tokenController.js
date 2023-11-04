@@ -408,7 +408,7 @@ exports.getOneKeyInfo = async (req, res) => {
   try {
     const key = await Key.aggregate([
       {
-        $match: { lootBoxID: 1, supply: { $gt: 0 } },
+        $match: { lootBoxID: boxID, supply: { $gt: 0 } },
       },
       {
         $lookup: {
